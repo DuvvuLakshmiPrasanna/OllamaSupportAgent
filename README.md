@@ -137,6 +137,39 @@ python chatbot.py
 
 Results are written to `eval/results.md`.
 
+## Operational Utilities
+
+To make repository hygiene functional (not just `.gitignore` patterns), this project includes two PowerShell utilities:
+
+- `scripts/clean_project.ps1` removes local-only artifacts such as virtual environments, cache files, coverage outputs, and build folders.
+- `scripts/verify_submission.ps1` validates required files and checks that `eval/results.md` has at least 40 response rows and 20 unique query IDs.
+
+Run them from project root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\clean_project.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\verify_submission.ps1
+```
+
+These scripts are intended to be run before creating the final submission commit.
+
+## Git Hygiene Workflow
+
+Recommended pre-push workflow:
+
+1. Run the cleanup utility.
+2. Run the submission verification utility.
+3. Review git status.
+4. Commit only source and documentation artifacts.
+
+Example:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\clean_project.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\verify_submission.ps1
+git status
+```
+
 ## Limitations and Future Work
 
 Current limitations:
