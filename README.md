@@ -6,8 +6,6 @@ An offline customer-support chatbot for e-commerce workflows, powered by Ollama 
 
 Customer support often handles sensitive information such as order IDs, transaction issues, and account details. Sending these requests to third-party APIs can increase privacy, compliance, and operational risk. This project demonstrates a local-first alternative:
 
-# Offline Customer Support Chatbot with Ollama and Llama 3.2
-
 ## Overview
 
 This project builds and evaluates an offline customer support chatbot for a fictional e-commerce platform using Ollama and llama3.2:3b. It compares zero-shot and one-shot prompting across 20 adapted customer queries and logs 40 responses with manual scoring.
