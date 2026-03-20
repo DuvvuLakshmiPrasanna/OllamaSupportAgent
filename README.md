@@ -1,168 +1,125 @@
 # Offline Customer Support Chatbot with Ollama and Llama 3.2
 
-This project demonstrates how to run an e-commerce customer support chatbot entirely on local hardware using Ollama and the Llama 3.2 3B model. It compares zero-shot and one-shot prompting strategies across 20 realistic customer queries and records the results in a structured evaluation file.
+An offline customer-support chatbot for e-commerce workflows, powered by Ollama and llama3.2:3b. The project compares zero-shot and one-shot prompting on 20 adapted customer queries and logs 40 scored responses for evaluation.
 
-## Project Overview
+## Why This Project
 
-E-commerce companies collect a significant amount of personal data through their customer support channels. A customer asking about an order status shares an order number. A customer disputing a charge includes transaction details. Over a support queue of any meaningful size, routing all of that through a third-party API creates both regulatory exposure and a dependency on external availability.
+Customer support often handles sensitive information such as order IDs, transaction issues, and account details. Sending these requests to third-party APIs can increase privacy, compliance, and operational risk. This project demonstrates a local-first alternative:
 
-Running a language model locally with Ollama sidesteps both problems. The model weights live on your machine, inference happens within your network perimeter, and no customer data leaves the system. The trade-off is raw capability: a 3B parameter model is smaller than large cloud models, so prompt design and policy grounding matter.
+- model runs on local machine
+- inference remains inside your network boundary
+- no external LLM API dependency at runtime
 
-This project tests that question concretely. It runs 20 adapted Ubuntu Dialogue Corpus style queries through two prompt configurations and scores outputs on Relevance, Coherence, and Helpfulness. The results and analysis are in `eval/results.md` and `report.md`.
+The goal is not just to generate answers, but to evaluate prompt strategy quality in a controlled setup.
 
-## Architecture
+## Objectives
+
+- Build a working offline chatbot client against Ollama REST API
+- Compare zero-shot vs one-shot prompting behavior
+- Score outputs on relevance, coherence, and helpfulness
+- Document findings and limitations for production-readiness discussion
+
+## Tech Stack
+
+- Ollama (local model serving)
+- Llama 3.2 3B (llama3.2:3b)
+- Python
+- requests
+- datasets (Hugging Face)
+
+## High-Level Architecture
 
 ```text
-+-----------------------+
-|                       |
-|   chatbot.py          |
-| (Your Python Script)  |
-|                       |
-+-----------+-----------+
-			| 1. Format prompt with query
-			| 2. Construct JSON payload
-			v
-+-----------------------+
-|   HTTP POST Request   |
-| to http://localhost...|
-+-----------+-----------+
-			|
-			v
-+-----------------------+
-|                       |
-|   Ollama Server       |
-| (Running Locally)     |
-|                       |
-+-----------+-----------+
-			| 3. Pass prompt to model
-			v
-+-----------------------+
-|                       |
-|   Llama 3.2 Model     |
-|   (Inference)         |
-|                       |
-+-----------+-----------+
-			| 4. Generate response text
-			v
-+-----------------------+
-|                       |
-|   Ollama Server       |
-|                       |
-|                       |
-+-----------+-----------+
-			| 5. Package response in JSON
-			v
-+-----------------------+
-|   HTTP 200 OK Response|
-| with generated text   |
-+-----------+-----------+
-			| 6. Parse JSON
-			| 7. Log response
-			v
-+-----------------------+
-|                       |
-|   eval/results.md     |
-| (Output Log File)     |
-|                       |
-+-----------------------+
+chatbot.py
+  -> formats prompt with query
+  -> POST /api/generate (Ollama)
+  -> receives model response JSON
+  -> appends scored row-ready output to eval/results.md
 ```
 
 ## Repository Structure
 
 ```text
 .
-├── chatbot.py                   # Main script: runs all 20 queries, writes results
-├── data_prep.py                 # Demonstrates Ubuntu Corpus loading and adaptation
-├── README.md                    # This file
-├── setup.md                     # Step-by-step installation and execution guide
-├── report.md                    # Quantitative and qualitative analysis report
-├── requirements.txt             # Python dependencies (requests, datasets)
-├── .gitignore                   # Standard Python gitignore
+├── chatbot.py
+├── data_prep.py
+├── README.md
+├── setup.md
+├── report.md
+├── requirements.txt
+├── .gitignore
 ├── prompts/
-│   ├── zero_shot_template.txt   # System persona + query placeholder, no example
-│   └── one_shot_template.txt    # System persona + worked example + query placeholder
-└── eval/
-	└── results.md               # 40-row evaluation table with scores
+│   ├── zero_shot_template.txt
+│   └── one_shot_template.txt
+├── eval/
+│   └── results.md
+└── scripts/
+    ├── clean_project.ps1
+    └── verify_submission.ps1
 ```
 
-## Key Concepts
+## Prompting Design
 
-### What Ollama is and why it was chosen
+### Zero-Shot
 
-Ollama is a tool for running open-weight language models locally via a simple HTTP API. It handles model serving behind a lightweight local endpoint and keeps integration simple for a requests-based Python client.
+Uses role instructions and policy context without example output.
 
-### What Llama 3.2 3B is and its constraints
+### One-Shot
 
-Llama 3.2 3B is a small model variant that can run on typical developer hardware. It is practical for constrained support workflows, but less reliable than larger models for complex reasoning and policy edge cases.
+Adds one worked query-response example in the template to steer tone and structure.
 
-### Zero-shot prompting
+## Dataset and Query Adaptation
 
-Zero-shot prompting sends only task instructions and the customer query, with no prior example. It relies on baseline instruction-following behavior.
+The project adapts Ubuntu Dialogue Corpus style issues into e-commerce support queries. This preserves real support-like user intent while shifting domain context.
 
-### One-shot prompting
+Example adaptations:
 
-One-shot prompting includes one worked example before the actual query. This helps the model follow expected tone and response format.
+- Technical: internet/driver issue -> E-commerce: order tracking issue
+- Technical: dependency conflict -> E-commerce: invalid discount code issue
 
-## Dataset
+See data_prep.py for demonstration logic.
 
-The Ubuntu Dialogue Corpus is a large collection of multi-turn technical support conversations. In this project, it is used as a source pattern for query adaptation into e-commerce support scenarios.
+## Evaluation Results Summary
 
-Adaptation examples:
+Based on eval/results.md:
 
-- "I cannot connect to the internet after upgrading the kernel" becomes "How do I track the shipping status of my recent order?"
-- "I ran apt-get install and it failed with a dependency conflict" becomes "My discount code says invalid at checkout. What should I do?"
+| Metric      | Zero-Shot | One-Shot |
+| ----------- | --------: | -------: |
+| Relevance   |      3.90 |     4.65 |
+| Coherence   |      4.25 |     4.95 |
+| Helpfulness |      2.90 |     3.85 |
 
-## Findings Summary
+Conclusion: one-shot prompting produced stronger performance across all three evaluation dimensions in this run.
 
-| Metric      | Zero-Shot Average | One-Shot Average |
-| ----------- | ----------------- | ---------------- |
-| Relevance   | 3.90              | 4.65             |
-| Coherence   | 4.25              | 4.95             |
-| Helpfulness | 2.90              | 3.85             |
+## Run Instructions
 
-One-shot prompting consistently outperformed zero-shot on this evaluation set, especially in helpfulness and instruction clarity.
+For full setup, see setup.md.
 
-## How to Run
-
-Full instructions are in [setup.md](setup.md). For users who already have Ollama installed and model pulled:
+Quick start:
 
 ```bash
 git clone https://github.com/DuvvuLakshmiPrasanna/OllamaSupportAgent.git
 cd OllamaSupportAgent
 python -m venv venv
-venv\\Scripts\\activate
+venv\Scripts\activate
 pip install -r requirements.txt
 python chatbot.py
 ```
 
-Results are written to `eval/results.md`.
+Output is written to eval/results.md.
 
 ## Operational Utilities
 
-To make repository hygiene functional (not just `.gitignore` patterns), this project includes two PowerShell utilities:
+This repository includes practical scripts so workspace hygiene is functional, not only configuration-based.
 
-- `scripts/clean_project.ps1` removes local-only artifacts such as virtual environments, cache files, coverage outputs, and build folders.
-- `scripts/verify_submission.ps1` validates required files and checks that `eval/results.md` has at least 40 response rows and 20 unique query IDs.
+- scripts/clean_project.ps1
+  - removes local-only artifacts such as virtual environments, caches, build outputs, and coverage files
 
-Run them from project root:
+- scripts/verify_submission.ps1
+  - checks required deliverables
+  - validates evaluation completeness (at least 40 response rows and 20 unique query IDs)
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\clean_project.ps1
-powershell -ExecutionPolicy Bypass -File .\scripts\verify_submission.ps1
-```
-
-These scripts are intended to be run before creating the final submission commit.
-
-## Git Hygiene Workflow
-
-Recommended pre-push workflow:
-
-1. Run the cleanup utility.
-2. Run the submission verification utility.
-3. Review git status.
-4. Commit only source and documentation artifacts.
-
-Example:
+Run before final commit:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\clean_project.ps1
@@ -170,19 +127,17 @@ powershell -ExecutionPolicy Bypass -File .\scripts\verify_submission.ps1
 git status
 ```
 
-## Limitations and Future Work
+## Limitations
 
-Current limitations:
+- No direct integration with live order/payment/tracking systems
+- Accuracy depends on prompt policy context and model limitations
+- CPU-only local inference can be slow for batch evaluations
 
-- No direct integration with real order management systems
-- Responses depend on prompt policy context and can still miss edge-case precision
-- CPU inference can be slower for large evaluation runs
+## Future Improvements
 
-Future improvements:
-
-- Add retrieval over policy documents for stronger factual grounding
-- Integrate safe backend tools for order lookup workflows
-- Add automated evaluation scripts and confidence checks
+- Add retrieval augmentation over policy documents
+- Add tool-safe integrations for order and shipment lookup
+- Add automated scoring and regression checks for prompt updates
 
 ## License
 
