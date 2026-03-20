@@ -6,35 +6,51 @@ An offline customer-support chatbot for e-commerce workflows, powered by Ollama 
 
 Customer support often handles sensitive information such as order IDs, transaction issues, and account details. Sending these requests to third-party APIs can increase privacy, compliance, and operational risk. This project demonstrates a local-first alternative:
 
-- model runs on local machine
-- inference remains inside your network boundary
-- no external LLM API dependency at runtime
+# Offline Customer Support Chatbot with Ollama and Llama 3.2
 
-The goal is not just to generate answers, but to evaluate prompt strategy quality in a controlled setup.
+## Overview
+
+This project builds and evaluates an offline customer support chatbot for a fictional e-commerce platform using Ollama and llama3.2:3b. It compares zero-shot and one-shot prompting across 20 adapted customer queries and logs 40 responses with manual scoring.
+
+The key goal is to demonstrate how local LLM inference can support customer-service use cases while reducing privacy and compliance risk from external API dependency.
+
+## Problem Context
+
+Customer support conversations often include order IDs, payment issues, delivery disputes, and account details. In many organizations, sending this content to third-party hosted models raises data governance concerns. A local deployment strategy keeps inference inside the organization boundary and enables stronger control over sensitive data flows.
+
+This project explores that trade-off with a practical experiment:
+
+1. Run support prompts locally through Ollama.
+2. Compare prompt strategies (zero-shot vs one-shot).
+3. Score quality using a consistent rubric.
+4. Summarize findings and limitations.
 
 ## Objectives
 
-- Build a working offline chatbot client against Ollama REST API
-- Compare zero-shot vs one-shot prompting behavior
-- Score outputs on relevance, coherence, and helpfulness
-- Document findings and limitations for production-readiness discussion
+1. Build a functional Python client for Ollama API at localhost.
+2. Use llama3.2:3b for response generation.
+3. Test at least 20 e-commerce-related queries.
+4. Produce both zero-shot and one-shot responses for each query.
+5. Score outputs on Relevance, Coherence, and Helpfulness.
 
 ## Tech Stack
 
-- Ollama (local model serving)
+- Ollama (local model server)
 - Llama 3.2 3B (llama3.2:3b)
-- Python
+- Python 3.x
 - requests
-- datasets (Hugging Face)
+- datasets
 
-## High-Level Architecture
+## End-to-End Flow
 
 ```text
 chatbot.py
-  -> formats prompt with query
-  -> POST /api/generate (Ollama)
-  -> receives model response JSON
-  -> appends scored row-ready output to eval/results.md
+  -> loads prompt templates
+  -> formats query into zero-shot and one-shot prompts
+  -> POST http://localhost:11434/api/generate
+  -> parses JSON response
+  -> writes markdown table rows into eval/results.md
+  -> user manually reviews and scores quality columns
 ```
 
 ## Repository Structure
@@ -58,30 +74,103 @@ chatbot.py
     └── verify_submission.ps1
 ```
 
-## Prompting Design
+## Prompt Engineering Setup
 
-### Zero-Shot
+### Zero-Shot Template
 
-Uses role instructions and policy context without example output.
+The zero-shot template provides role and policy constraints but no worked example.
 
-### One-Shot
+### One-Shot Template
 
-Adds one worked query-response example in the template to steer tone and structure.
+The one-shot template includes one hardcoded example query-response pair to guide structure, tone, and response style.
 
 ## Dataset and Query Adaptation
 
-The project adapts Ubuntu Dialogue Corpus style issues into e-commerce support queries. This preserves real support-like user intent while shifting domain context.
+Queries are adapted from Ubuntu Dialogue Corpus style support scenarios into e-commerce intent categories.
 
-Example adaptations:
+Example adaptation logic:
 
-- Technical: internet/driver issue -> E-commerce: order tracking issue
-- Technical: dependency conflict -> E-commerce: invalid discount code issue
+- Network/device discovery issue -> shipping status tracking issue
+- Installation/dependency failure -> discount code checkout failure
 
-See data_prep.py for demonstration logic.
+The adaptation demonstration script is in data_prep.py.
 
-## Evaluation Results Summary
+## Setup Guide
 
-Based on eval/results.md:
+### 1. Install Ollama
+
+Install Ollama for Windows from the official website, then verify:
+
+```powershell
+ollama --version
+```
+
+If PATH is not refreshed, use absolute executable path:
+
+```powershell
+"C:\Users\prasa\AppData\Local\Programs\Ollama\ollama.exe" --version
+```
+
+### 2. Pull Model
+
+```powershell
+ollama pull llama3.2:3b
+```
+
+### 3. Create and Activate Virtual Environment
+
+```powershell
+python -m venv venv
+venv\Scripts\activate
+```
+
+### 4. Install Dependencies
+
+```powershell
+pip install -r requirements.txt
+```
+
+## Run Guide
+
+### Standard Run
+
+```powershell
+python chatbot.py
+```
+
+### Optional Custom Run
+
+```powershell
+python chatbot.py --endpoint http://localhost:11434/api/generate --model llama3.2:3b --timeout 120 --output eval/results.md
+```
+
+### Expected Runtime Output
+
+The script logs progress like:
+
+```text
+Processed query 1/20
+...
+Processed query 20/20
+Saved evaluation log to: eval/results.md
+```
+
+## Evaluation Method
+
+For each query, two outputs are generated:
+
+- Zero-Shot response
+- One-Shot response
+
+Scoring rubric used in eval/results.md:
+
+- Relevance (1-5): response addresses the query accurately
+- Coherence (1-5): response is clear and well-formed
+- Helpfulness (1-5): response provides actionable support value
+
+## Results Summary
+
+From eval/results.md:
 
 | Metric      | Zero-Shot | One-Shot |
 | ----------- | --------: | -------: |
@@ -89,55 +178,69 @@ Based on eval/results.md:
 | Coherence   |      4.25 |     4.95 |
 | Helpfulness |      2.90 |     3.85 |
 
-Conclusion: one-shot prompting produced stronger performance across all three evaluation dimensions in this run.
+Interpretation:
 
-## Run Instructions
+- One-shot outperformed zero-shot across all dimensions.
+- The strongest gain appears in helpfulness.
+- One-shot prompting consistently produced more structured and helpful responses compared to zero-shot prompting.
 
-For full setup, see setup.md.
+## Utility Scripts
 
-Quick start:
+### scripts/clean_project.ps1
 
-```bash
-git clone https://github.com/DuvvuLakshmiPrasanna/OllamaSupportAgent.git
-cd OllamaSupportAgent
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
-python chatbot.py
-```
-
-Output is written to eval/results.md.
-
-## Operational Utilities
-
-This repository includes practical scripts so workspace hygiene is functional, not only configuration-based.
-
-- scripts/clean_project.ps1
-  - removes local-only artifacts such as virtual environments, caches, build outputs, and coverage files
-
-- scripts/verify_submission.ps1
-  - checks required deliverables
-  - validates evaluation completeness (at least 40 response rows and 20 unique query IDs)
-
-Run before final commit:
+Removes local-only artifacts such as virtual environments, caches, build outputs, and coverage files.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\clean_project.ps1
-powershell -ExecutionPolicy Bypass -File .\scripts\verify_submission.ps1
-git status
 ```
+
+### scripts/verify_submission.ps1
+
+Validates required file structure and result completeness.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\verify_submission.ps1
+```
+
+## Submission Checklist
+
+Before final submission, verify:
+
+1. chatbot.py runs successfully with local Ollama.
+2. prompts directory has both templates.
+3. eval/results.md has 40 rows (20 queries x 2 prompting methods).
+4. Scores are filled for all required rubric columns.
+5. README.md, setup.md, and report.md are present and consistent.
+
+## Troubleshooting
+
+- ollama command not found:
+  - Restart terminal or VS Code.
+  - Use absolute path executable command.
+- Port binding error on 11434:
+  - Ollama may already be running; do not start a second serve process.
+- Connection refused in chatbot.py:
+  - Confirm Ollama server is active and model is pulled.
+- Slow generation:
+  - CPU inference is expected to be slower than cloud GPU services.
 
 ## Limitations
 
-- No direct integration with live order/payment/tracking systems
-- Accuracy depends on prompt policy context and model limitations
-- CPU-only local inference can be slow for batch evaluations
+- No real-time integration with order, payment, or shipping systems.
+- Responses depend on template constraints and may miss policy edge cases.
+- Small local model has reasoning limits for complex support workflows.
 
 ## Future Improvements
 
-- Add retrieval augmentation over policy documents
-- Add tool-safe integrations for order and shipment lookup
-- Add automated scoring and regression checks for prompt updates
+1. Add retrieval over policy documents for grounded answers.
+2. Integrate safe internal tools for order and shipment lookups.
+3. Add automated regression checks for prompt quality over time.
+
+## Related Documents
+
+- setup.md for focused setup steps
+- report.md for detailed analysis and conclusion
+- eval/results.md for full scored response log
 
 ## License
 
