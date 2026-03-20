@@ -4,20 +4,11 @@ This project demonstrates how to run an e-commerce customer support chatbot enti
 
 ## Project Overview
 
-E-commerce companies collect a significant amount of personal data through customer support channels. Routing all support interactions through third-party APIs can create regulatory risk and operational dependency. Running a local LLM with Ollama avoids that by keeping model execution and customer data on local infrastructure.
+E-commerce companies collect a significant amount of personal data through their customer support channels. A customer asking about an order status shares an order number. A customer disputing a charge includes transaction details. Over a support queue of any meaningful size, routing all of that through a third-party API creates both regulatory exposure and a dependency on external availability.
 
-This project evaluates that approach using 20 adapted support queries and two prompt styles:
+Running a language model locally with Ollama sidesteps both problems. The model weights live on your machine, inference happens within your network perimeter, and no customer data leaves the system. The trade-off is raw capability: a 3B parameter model is smaller than large cloud models, so prompt design and policy grounding matter.
 
-- Zero-shot prompting
-- One-shot prompting
-
-Each generated response is scored on:
-
-- Relevance
-- Coherence
-- Helpfulness
-
-Detailed outputs are in `eval/results.md`, with analysis in `report.md`.
+This project tests that question concretely. It runs 20 adapted Ubuntu Dialogue Corpus style queries through two prompt configurations and scores outputs on Relevance, Coherence, and Helpfulness. The results and analysis are in `eval/results.md` and `report.md`.
 
 ## Architecture
 
@@ -80,46 +71,46 @@ Detailed outputs are in `eval/results.md`, with analysis in `report.md`.
 
 ```text
 .
-├── chatbot.py
-├── data_prep.py
-├── README.md
-├── setup.md
-├── report.md
-├── requirements.txt
-├── .gitignore
+├── chatbot.py                   # Main script: runs all 20 queries, writes results
+├── data_prep.py                 # Demonstrates Ubuntu Corpus loading and adaptation
+├── README.md                    # This file
+├── setup.md                     # Step-by-step installation and execution guide
+├── report.md                    # Quantitative and qualitative analysis report
+├── requirements.txt             # Python dependencies (requests, datasets)
+├── .gitignore                   # Standard Python gitignore
 ├── prompts/
-│   ├── zero_shot_template.txt
-│   └── one_shot_template.txt
+│   ├── zero_shot_template.txt   # System persona + query placeholder, no example
+│   └── one_shot_template.txt    # System persona + worked example + query placeholder
 └── eval/
-	└── results.md
+	└── results.md               # 40-row evaluation table with scores
 ```
 
 ## Key Concepts
 
-### Ollama
+### What Ollama is and why it was chosen
 
-Ollama runs open-weight LLMs locally via a simple HTTP API. It handles serving and model runtime setup with minimal friction.
+Ollama is a tool for running open-weight language models locally via a simple HTTP API. It handles model serving behind a lightweight local endpoint and keeps integration simple for a requests-based Python client.
 
-### Llama 3.2 3B
+### What Llama 3.2 3B is and its constraints
 
-The `llama3.2:3b` model is small enough to run on consumer hardware. It is efficient, but less capable than larger cloud models on complex reasoning tasks.
+Llama 3.2 3B is a small model variant that can run on typical developer hardware. It is practical for constrained support workflows, but less reliable than larger models for complex reasoning and policy edge cases.
 
-### Zero-shot Prompting
+### Zero-shot prompting
 
-Zero-shot prompting asks the model to perform a task with instructions only, without examples.
+Zero-shot prompting sends only task instructions and the customer query, with no prior example. It relies on baseline instruction-following behavior.
 
-### One-shot Prompting
+### One-shot prompting
 
-One-shot prompting includes one demonstration example before the actual query to improve style and response structure.
+One-shot prompting includes one worked example before the actual query. This helps the model follow expected tone and response format.
 
 ## Dataset
 
-The Ubuntu Dialogue Corpus is used as a source pattern for realistic support interactions. Queries were adapted from technical support style into e-commerce support scenarios.
+The Ubuntu Dialogue Corpus is a large collection of multi-turn technical support conversations. In this project, it is used as a source pattern for query adaptation into e-commerce support scenarios.
 
-Two adaptation examples:
+Adaptation examples:
 
-- "I cannot connect to the internet after upgrading the kernel" -> "How do I track the shipping status of my recent order?"
-- "apt-get install failed with dependency conflict" -> "My discount code says invalid at checkout. What should I do?"
+- "I cannot connect to the internet after upgrading the kernel" becomes "How do I track the shipping status of my recent order?"
+- "I ran apt-get install and it failed with a dependency conflict" becomes "My discount code says invalid at checkout. What should I do?"
 
 ## Findings Summary
 
@@ -129,20 +120,17 @@ Two adaptation examples:
 | Coherence   | 4.25              | 4.95             |
 | Helpfulness | 2.90              | 3.85             |
 
-One-shot prompting consistently produced more structured and helpful responses compared to zero-shot prompting.
+One-shot prompting consistently outperformed zero-shot on this evaluation set, especially in helpfulness and instruction clarity.
 
 ## How to Run
 
-Full setup is documented in `setup.md`.
+Full instructions are in [setup.md](setup.md). For users who already have Ollama installed and model pulled:
 
 ```bash
 git clone https://github.com/DuvvuLakshmiPrasanna/OllamaSupportAgent.git
 cd OllamaSupportAgent
 python -m venv venv
-# Windows
-venv\Scripts\activate
-# Linux/macOS
-# source venv/bin/activate
+venv\\Scripts\\activate
 pip install -r requirements.txt
 python chatbot.py
 ```
@@ -151,9 +139,17 @@ Results are written to `eval/results.md`.
 
 ## Limitations and Future Work
 
-- The model does not access live order systems or real customer records.
-- Policy-grounded retrieval can further reduce hallucination risk.
-- Larger models or GPU inference can improve quality and speed.
+Current limitations:
+
+- No direct integration with real order management systems
+- Responses depend on prompt policy context and can still miss edge-case precision
+- CPU inference can be slower for large evaluation runs
+
+Future improvements:
+
+- Add retrieval over policy documents for stronger factual grounding
+- Integrate safe backend tools for order lookup workflows
+- Add automated evaluation scripts and confidence checks
 
 ## License
 
