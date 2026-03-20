@@ -28,8 +28,13 @@ ADAPTATION_EXAMPLES = [
 
 def load_sample_rows(sample_size: int = 10) -> list[dict]:
     """Load a small sample from the Ubuntu Dialogue Corpus train split."""
-    dataset = load_dataset("rguo12/ubuntu_dialogue_corpus", "v2.0")
-    train_split = dataset["train"]
+    try:
+        dataset = load_dataset("rguo12/ubuntu_dialogue_corpus", "v2.0")
+        train_split = dataset["train"]
+    except Exception as exc:
+        print(f"Warning: Could not load dataset from Hugging Face Hub ({exc}).")
+        print("Continuing without remote sample rows.")
+        return []
 
     rows: list[dict] = []
     for i in range(min(sample_size, len(train_split))):
@@ -57,6 +62,10 @@ def main() -> None:
     print_adaptation_examples()
     print("Loading a small sample from Ubuntu Dialogue Corpus...")
     sample_rows = load_sample_rows(sample_size=3)
+
+    if not sample_rows:
+        print("No sample rows available. Check dataset access or update dataset identifier.")
+        return
 
     for i, row in enumerate(sample_rows, start=1):
         context_preview = str(row["context"])[:180].replace("\n", " ")
